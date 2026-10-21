@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movable Type Page</title>
+<style>
+  body { margin: 0; padding: 24px; background: #2b2118; color: #e8d9b8; font-family: Georgia, serif;
+         display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .controls { width: min(640px, 100%); display: flex; flex-direction: column; gap: 8px; }
+  textarea { width: 100%; min-height: 120px; padding: 10px; box-sizing: border-box; font: 16px Georgia, serif;
+             background: #f3e7c9; color: #2a1d10; border: 1px solid #8a6d3b; border-radius: 4px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button { padding: 6px 14px; font: inherit; background: #8a6d3b; color: #fff8e6; border: 0; border-radius: 4px; cursor: pointer; }
+  .page {
+    width: min(640px, 100%); box-sizing: border-box; padding: 56px 60px; min-height: 420px;
+    background:
+      radial-gradient(ellipse at 20% 15%, rgba(255,255,255,.35), transparent 50%),
+      radial-gradient(ellipse at 85% 90%, rgba(120,70,20,.25), transparent 55%),
+      #ead9ad;
+    border: 14px solid transparent;
+    border-image: repeating-linear-gradient(45deg, #5a3b1a 0 6px, #7a5528 6px 12px) 14;
+    box-shadow: inset 0 0 60px rgba(90,55,20,.45), 0 10px 30px rgba(0,0,0,.6);
+    font: 22px/1.7 "Palatino Linotype", Palatino, Georgia, serif;
+    color: #2a1d10; word-wrap: break-word; white-space: pre-wrap;
+  }
+  .page { position: relative; overflow: hidden; }
+  .page span { display: inline-block; white-space: pre; transform: var(--t); opacity: var(--o); }
+  .page.typing span { animation: slug .35s cubic-bezier(.2,.8,.3,1) both; animation-delay: var(--d); }
+  @keyframes slug {
+    from { opacity: 0; transform: translateY(-22px) scale(1.5); filter: blur(3px); }
+    65%  { opacity: 1; transform: translateY(1px) scale(.96); filter: blur(0); text-shadow: 0 0 5px rgba(20,10,0,.9); }
+    to   { opacity: var(--o); transform: var(--t); }
+  }
+  /* platen pressing down over the page */
+  .platen { position: absolute; inset: 0 0 auto 0; height: 100%; pointer-events: none; opacity: 0;
+            background: linear-gradient(#3a2a18, #5a4128 85%, #1c130a);
+            transform: translateY(-105%); }
+  .page.pressing .platen { animation: platen 1.1s ease-in-out both; }
+  @keyframes platen {
+    0% { transform: translateY(-105%); opacity: 1; }
+    35% { transform: translateY(0); opacity: .55; }
+    50% { transform: translateY(0); opacity: .55; }
+    100% { transform: translateY(-105%); opacity: 1; }
+  }
+  .page.pressing { animation: thump 1.1s ease-in-out; }
+  @keyframes thump {
+    35%, 50% { transform: scale(.985); box-shadow: inset 0 0 90px rgba(60,30,5,.7), 0 2px 8px rgba(0,0,0,.8); }
+  }
+</style>
+</head>
+<body>
+<div class="controls">
+  <textarea id="input" placeholder="Type your text here...">Hear ye, hear ye! Let every word be set in type.</textarea>
+  <div class="row">
+    <button id="print">Print</button>
+    <button id="redo">Re-ink</button>
+    <label>Variation <input type="range" id="amt" min="0" max="100" value="50"></label>
+  </div>
+</div>
+<div class="page" id="page" aria-live="polite"></div>
+<script>
+  const input = document.getElementById('input');
+  const page = document.getElementById('page');
+  const amt = document.getElementById('amt');
+  const rnd = (a, b) => a + Math.random() * (b - a);
+
+  function render() {
+    const k = amt.value / 100;
+    const frag = document.createDocumentFragment();
+    let n = 0;
+    for (const ch of input.value) {
+      if (ch === '\n' || ch === ' ') { frag.append(ch); continue; }
+      const s = document.createElement('span');
+      s.textContent = ch;
+      const op = 1 - rnd(0, 0.35) * k;
+      const g = Math.round(rnd(0, 25) * k);
+      s.style.setProperty('--o', op.toFixed(2));
+      s.style.color = `rgb(${42 + g},${29 + g},${16 + g})`;
+      s.style.setProperty('--t', `translateY(${rnd(-1.5, 1.5) * k}px) rotate(${rnd(-2.5, 2.5) * k}deg) scale(${1 + rnd(-0.04, 0.04) * k})`);
+      s.style.textShadow = `0 0 ${rnd(0, 1.5) * k}px rgba(42,29,16,.6)`;
+      s.style.setProperty('--d', `${(n++ * 0.04).toFixed(2)}s`);
+      frag.append(s);
+    }
+    page.replaceChildren(frag, platen);
+  }
+
+  const platen = Object.assign(document.createElement('div'), { className: 'platen' });
+  let timers = [];
+  function print() {
+    timers.forEach(clearTimeout);
+    page.classList.remove('typing', 'pressing');
+    render();
+    void page.offsetWidth; // restart animations
+    page.classList.add('typing');
+    const typeMs = Math.min(input.value.length * 40 + 350, 6000);
+    timers = [
+      setTimeout(() => { page.classList.remove('typing'); page.classList.add('pressing'); }, typeMs),
+      setTimeout(() => page.classList.remove('pressing'), typeMs + 1100),
+    ];
+  }
+  function rerender() { page.classList.remove('typing'); render(); }
+  input.addEventListener('input', rerender);
+  amt.addEventListener('input', rerender);
+  document.getElementById('redo').addEventListener('click', rerender);
+  document.getElementById('print').addEventListener('click', print);
+  render();
+  print();
+</script>
+</body>
+</html>
